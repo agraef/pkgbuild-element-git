@@ -29,11 +29,24 @@ pkgver() {
 }
 
 build() {
-  meson $_pkgname $_pkgname-build --prefix /usr
+  # If you have the vst2sdk package from the AUR installed, we enable its use,
+  # so that the host has support for VST2 and so that the Element VST plugins
+  # can be included. NB1: If you have the VST2 SDK installed in another
+  # location, just change the vst2path variable below accordingly. NB2: I
+  # haven't been able to figure out which version of the VST3 SDK is required
+  # to make the build of the Element VST3 plugins work on Linux, so these
+  # aren't enabled for now.
+  vst2path=/usr/include/vst36
+  if [ -d $vst2path ]; then meson $_pkgname $_pkgname-build --prefix /usr -Delement-plugins=enabled -Dvst2sdk=$vst2path; else meson $_pkgname $_pkgname-build --prefix /usr; fi
   meson compile -C $_pkgname-build
 }
 
 package() {
   depends+=(libasound.so libcurl.so libfreetype.so)
   meson install -C $_pkgname-build --destdir "$pkgdir"
+  # For some reason, the Element plugins are placed into
+  # /usr/packages/net.kushview.element.vst/data, and there doesn't seem to be
+  # a meson variable to change that path. So we move them into the proper
+  # location under /usr/lib/vst if we have them.
+  if [ -d "$pkgdir/usr/packages/net.kushview.element.vst" ]; then mkdir -p "$pkgdir/usr/lib/vst" && mv "$pkgdir/usr/packages/net.kushview.element.vst/data" "$pkgdir/usr/lib/vst/net.kushview.element.vst" && rm -rf "$pkgdir/usr/packages"; fi
 }
